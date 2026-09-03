@@ -16,10 +16,12 @@ jobs:
 
       - name: Show SuperDMZ Version
         run: |
+          echo "========== VERSION =========="
           sudo superdmz-client -version || true
 
       - name: Show Help
         run: |
+          echo "========== HELP =========="
           sudo superdmz-client -h || true
 
       - name: Check Services
@@ -29,37 +31,84 @@ jobs:
 
           echo ""
           echo "========== RUNNING SERVICES =========="
+
           systemctl --type=service --all | grep -i superdmz || true
 
       - name: Check SuperDMZ Files
         run: |
           echo "========== /etc/superdmz =========="
+
           sudo find /etc/superdmz -maxdepth 3 -type f -print 2>/dev/null || true
 
           echo ""
           echo "========== /var/lib/superdmz =========="
+
           sudo find /var/lib/superdmz -maxdepth 3 -type f -print 2>/dev/null || true
 
-      - name: Show Config Without Secrets
+      - name: Inspect Token File Safely
         run: |
-          echo "========== CONFIG =========="
-          if [ -f /etc/superdmz/config.json ]; then
-            sudo cat /etc/superdmz/config.json
+          echo "========== TOKENS FILE =========="
+
+          if [ -f /etc/superdmz/tokens.json ]; then
+
+            sudo python3 - <<'PY'
+          import json
+
+          path = "/etc/superdmz/tokens.json"
+
+          try:
+              with open(path, "r") as f:
+                  data = json.load(f)
+
+              def hide(obj):
+                  if isinstance(obj, dict):
+                      result = {}
+
+                      for key, value in obj.items():
+                          if "token" in key.lower():
+                              result[key] = "***HIDDEN***"
+                          else:
+                              result[key] = hide(value)
+
+                      return result
+
+                  if isinstance(obj, list):
+                      return [hide(x) for x in obj]
+
+                  return obj
+
+              print(json.dumps(hide(data), indent=2))
+
+          except Exception as e:
+              print("Could not parse tokens.json:", e)
+          PY
+
           else
-            echo "config.json not found"
+            echo "tokens.json not found"
           fi
 
       - name: Check Processes
         run: |
           echo "========== PROCESSES =========="
+
           ps aux | grep -i '[s]uperdmz' || true
 
       - name: Check Status
         run: |
           echo "========== STATUS =========="
+
           sudo superdmz-client -status || true
 
       - name: Check State
         run: |
           echo "========== STATE =========="
+
           sudo superdmz-client -state || true
+
+      - name: Check Service Logs
+        run: |
+          echo "========== SERVICE LOGS =========="
+
+          sudo journalctl -u superdmz-client.service \
+            --no-pager \
+            -n 50 || true
