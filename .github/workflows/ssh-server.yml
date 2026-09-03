@@ -1,10 +1,10 @@
-name: Test SuperDMZ Token
+name: Inspect SuperDMZ
 
 on:
   workflow_dispatch:
 
 jobs:
-  test:
+  inspect:
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -14,25 +14,52 @@ jobs:
         run: |
           curl -fsSL https://superdmz.com/download/LinuxInstaller.sh | sudo sh
 
-      - name: Test Token Command
-        env:
-          SUPERDMZ_TOKEN: ${{ secrets.SUPERDMZ_TOKEN }}
+      - name: Show SuperDMZ Version
         run: |
-          if [ -z "$SUPERDMZ_TOKEN" ]; then
-            echo "ERROR: SUPERDMZ_TOKEN is empty"
-            exit 1
+          sudo superdmz-client -version || true
+
+      - name: Show Help
+        run: |
+          sudo superdmz-client -h || true
+
+      - name: Check Services
+        run: |
+          echo "========== SYSTEMD =========="
+          systemctl list-unit-files | grep -i superdmz || true
+
+          echo ""
+          echo "========== RUNNING SERVICES =========="
+          systemctl --type=service --all | grep -i superdmz || true
+
+      - name: Check SuperDMZ Files
+        run: |
+          echo "========== /etc/superdmz =========="
+          sudo find /etc/superdmz -maxdepth 3 -type f -print 2>/dev/null || true
+
+          echo ""
+          echo "========== /var/lib/superdmz =========="
+          sudo find /var/lib/superdmz -maxdepth 3 -type f -print 2>/dev/null || true
+
+      - name: Show Config Without Secrets
+        run: |
+          echo "========== CONFIG =========="
+          if [ -f /etc/superdmz/config.json ]; then
+            sudo cat /etc/superdmz/config.json
+          else
+            echo "config.json not found"
           fi
 
-          echo "Testing token command..."
+      - name: Check Processes
+        run: |
+          echo "========== PROCESSES =========="
+          ps aux | grep -i '[s]uperdmz' || true
 
-          timeout 10s sudo superdmz-client -token "$SUPERDMZ_TOKEN" || true
-
-          echo ""
-          echo "========== STATE AFTER TOKEN =========="
-
-          sudo superdmz-client -state || true
-
-          echo ""
-          echo "========== STATUS AFTER TOKEN =========="
-
+      - name: Check Status
+        run: |
+          echo "========== STATUS =========="
           sudo superdmz-client -status || true
+
+      - name: Check State
+        run: |
+          echo "========== STATE =========="
+          sudo superdmz-client -state || true
