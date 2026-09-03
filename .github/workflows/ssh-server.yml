@@ -1,103 +1,32 @@
-name: Public SSH Server
+name: Test SuperDMZ
 
 on:
   workflow_dispatch:
 
 jobs:
-  ssh-server:
+  test:
     runs-on: ubuntu-latest
-    timeout-minutes: 350
+    timeout-minutes: 10
 
     steps:
 
-      - name: Install SSH Server
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openssh-server
-
-          sudo mkdir -p /run/sshd
-
-          sudo systemctl enable ssh
-          sudo systemctl start ssh
-
-          echo "SSH server started"
-
-      - name: Create SSH User
-        run: |
-          if ! id yasin >/dev/null 2>&1; then
-            sudo useradd -m -s /bin/bash yasin
-          fi
-
-          echo 'yasin:ChangeThisPassword123!' | sudo chpasswd
-          sudo usermod -aG sudo yasin
-
-          echo "SSH user created"
-
-      - name: Install SuperDMZ Client
+      - name: Install SuperDMZ
         run: |
           curl -fsSL https://superdmz.com/download/LinuxInstaller.sh | sudo sh
 
-          echo "SuperDMZ installed"
-
-      - name: Configure SuperDMZ
-        env:
-          SUPERDMZ_TOKEN: ${{ secrets.SUPERDMZ_TOKEN }}
+      - name: Show Help
         run: |
-          if [ -z "$SUPERDMZ_TOKEN" ]; then
-            echo "SUPERDMZ_TOKEN is missing!"
-            exit 1
-          fi
-
-          echo "Configuring tunnel..."
-
-          sudo superdmz-client -token "$SUPERDMZ_TOKEN"
-
-          echo "Configuration finished"
-
-      - name: Start SuperDMZ Service
-        run: |
-          echo "Starting SuperDMZ service..."
-
-          sudo superdmz-client -run &
-
-          sleep 15
+          echo "========== VERSION =========="
+          sudo superdmz-client -version
 
           echo ""
-          echo "========== STATUS =========="
-
-          sudo superdmz-client -status || true
+          echo "========== HELP =========="
+          sudo superdmz-client -h || true
 
           echo ""
           echo "========== STATE =========="
-
-          sudo superdmz-client -state || true
-
-      - name: Check SSH
-        run: |
-          echo "========== SSH =========="
-
-          sudo systemctl status ssh --no-pager || true
+          sudo superdmz-client -state
 
           echo ""
-          echo "Port 22:"
-
-          sudo ss -tlnp | grep ':22' || true
-
-      - name: Keep Server Alive
-        run: |
-          echo "======================================"
-          echo "PUBLIC SSH SERVER"
-          echo "======================================"
-
-          while true; do
-            echo ""
-            echo "[$(date)] Server is running..."
-
-            echo "--- SuperDMZ ---"
-            sudo superdmz-client -status || true
-
-            echo "--- SSH ---"
-            sudo systemctl is-active ssh || true
-
-            sleep 60
-          done
+          echo "========== STATUS =========="
+          sudo superdmz-client -status
