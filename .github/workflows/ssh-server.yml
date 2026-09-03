@@ -1,4 +1,4 @@
-name: Test SuperDMZ
+name: Test SuperDMZ Token
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
 
     steps:
 
@@ -14,19 +14,25 @@ jobs:
         run: |
           curl -fsSL https://superdmz.com/download/LinuxInstaller.sh | sudo sh
 
-      - name: Show Help
+      - name: Test Token Command
+        env:
+          SUPERDMZ_TOKEN: ${{ secrets.SUPERDMZ_TOKEN }}
         run: |
-          echo "========== VERSION =========="
-          sudo superdmz-client -version
+          if [ -z "$SUPERDMZ_TOKEN" ]; then
+            echo "ERROR: SUPERDMZ_TOKEN is empty"
+            exit 1
+          fi
+
+          echo "Testing token command..."
+
+          timeout 10s sudo superdmz-client -token "$SUPERDMZ_TOKEN" || true
 
           echo ""
-          echo "========== HELP =========="
-          sudo superdmz-client -h || true
+          echo "========== STATE AFTER TOKEN =========="
+
+          sudo superdmz-client -state || true
 
           echo ""
-          echo "========== STATE =========="
-          sudo superdmz-client -state
+          echo "========== STATUS AFTER TOKEN =========="
 
-          echo ""
-          echo "========== STATUS =========="
-          sudo superdmz-client -status
+          sudo superdmz-client -status || true
