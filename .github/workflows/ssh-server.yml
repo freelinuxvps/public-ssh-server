@@ -10,7 +10,8 @@ jobs:
 
     steps:
 
-      - name: Install SSH
+      # 1. نصب SSH Server
+      - name: Install SSH Server
         run: |
           sudo apt-get update
           sudo apt-get install -y openssh-server
@@ -20,8 +21,9 @@ jobs:
           sudo systemctl enable ssh
           sudo systemctl start ssh
 
-          echo "SSH Server started"
+          echo "SSH server started"
 
+      # 2. ساخت کاربر SSH
       - name: Create SSH User
         run: |
           sudo useradd -m -s /bin/bash yasin || true
@@ -30,24 +32,63 @@ jobs:
 
           sudo usermod -aG sudo yasin
 
+          echo "User created"
+
+      # 3. نصب SuperDMZ Client
       - name: Install SuperDMZ Client
         run: |
           curl -fsSL https://superdmz.com/download/LinuxInstaller.sh | sudo sh
 
+          echo "SuperDMZ Client installed"
+
+      # 4. اتصال Tunnel
       - name: Start SuperDMZ Tunnel
         env:
           SUPERDMZ_TOKEN: ${{ secrets.SUPERDMZ_TOKEN }}
         run: |
-          sudo superdmz-client --token "$SUPERDMZ_TOKEN" --port 22
+          sudo superdmz-client -token "$SUPERDMZ_TOKEN"
 
+          echo "Waiting for tunnel..."
+          sleep 10
+
+          echo "Tunnel status:"
+          sudo superdmz-client -status
+
+      # 5. بررسی SSH
       - name: Check SSH
         run: |
+          echo "SSH status:"
           sudo systemctl status ssh --no-pager || true
-          ss -tlnp | grep ':22' || true
 
+          echo ""
+          echo "Port 22:"
+          sudo ss -tlnp | grep ':22' || true
+
+      # 6. نمایش وضعیت Tunnel
+      - name: Show Tunnel Status
+        run: |
+          echo "======================================"
+          echo "       PUBLIC SSH SERVER"
+          echo "======================================"
+
+          sudo superdmz-client -status
+
+          echo ""
+          echo "SSH Username:"
+          echo "yasin"
+
+          echo ""
+          echo "SSH Local Port:"
+          echo "22"
+
+          echo "======================================"
+
+      # 7. زنده نگه داشتن Runner
       - name: Keep Server Alive
         run: |
           while true; do
-            echo "[$(date)] SSH server is running..."
-            sleep 300
+            echo ""
+            echo "[$(date)] SSH Server is running..."
+            sudo superdmz-client -status || true
+            sleep 60
           done
