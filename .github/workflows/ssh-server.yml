@@ -10,7 +10,6 @@ jobs:
 
     steps:
 
-      # 1. نصب SSH
       - name: Install SSH Server
         run: |
           sudo apt-get update
@@ -21,9 +20,8 @@ jobs:
           sudo systemctl enable ssh
           sudo systemctl start ssh
 
-          echo "SSH server started successfully"
+          echo "SSH server started"
 
-      # 2. ساخت کاربر SSH
       - name: Create SSH User
         run: |
           if ! id yasin >/dev/null 2>&1; then
@@ -31,115 +29,75 @@ jobs:
           fi
 
           echo 'yasin:ChangeThisPassword123!' | sudo chpasswd
-
           sudo usermod -aG sudo yasin
 
           echo "SSH user created"
 
-      # 3. نصب SuperDMZ
       - name: Install SuperDMZ Client
         run: |
           curl -fsSL https://superdmz.com/download/LinuxInstaller.sh | sudo sh
 
-          echo "SuperDMZ Client installed"
+          echo "SuperDMZ installed"
 
-      # 4. بررسی نسخه و وضعیت اولیه
-      - name: Check SuperDMZ
-        run: |
-          echo "========== VERSION =========="
-          sudo superdmz-client -version || true
-
-          echo ""
-          echo "========== STATE =========="
-          sudo superdmz-client -state || true
-
-          echo ""
-          echo "========== STATUS =========="
-          sudo superdmz-client -status || true
-
-      # 5. ثبت Token
-      - name: Configure SuperDMZ Tunnel
+      - name: Configure SuperDMZ
         env:
           SUPERDMZ_TOKEN: ${{ secrets.SUPERDMZ_TOKEN }}
         run: |
           if [ -z "$SUPERDMZ_TOKEN" ]; then
-            echo "ERROR: SUPERDMZ_TOKEN secret is empty."
+            echo "SUPERDMZ_TOKEN is missing!"
             exit 1
           fi
 
-          echo "Configuring SuperDMZ tunnel..."
+          echo "Configuring tunnel..."
 
           sudo superdmz-client -token "$SUPERDMZ_TOKEN"
 
-          echo "Token configured."
+          echo "Configuration finished"
 
-      # 6. بررسی وضعیت Tunnel
-      - name: Check Tunnel
+      - name: Start SuperDMZ Service
         run: |
-          echo "Waiting for SuperDMZ..."
-          sleep 5
+          echo "Starting SuperDMZ service..."
+
+          sudo superdmz-client -run &
+
+          sleep 15
 
           echo ""
-          echo "========== SUPERDMZ STATUS =========="
+          echo "========== STATUS =========="
+
           sudo superdmz-client -status || true
 
           echo ""
-          echo "========== SUPERDMZ STATE =========="
+          echo "========== STATE =========="
+
           sudo superdmz-client -state || true
 
-      # 7. بررسی SSH
       - name: Check SSH
         run: |
-          echo "========== SSH STATUS =========="
+          echo "========== SSH =========="
 
           sudo systemctl status ssh --no-pager || true
 
           echo ""
-          echo "========== PORT 22 =========="
+          echo "Port 22:"
 
           sudo ss -tlnp | grep ':22' || true
 
-          echo ""
-          echo "========== SSH USER =========="
-
-          id yasin
-
-      # 8. نمایش اطلاعات
-      - name: Show Server Information
-        run: |
-          echo ""
-          echo "=========================================="
-          echo "          PUBLIC SSH SERVER"
-          echo "=========================================="
-
-          echo ""
-          echo "SSH Username:"
-          echo "yasin"
-
-          echo ""
-          echo "SSH Port:"
-          echo "22"
-
-          echo ""
-          echo "SuperDMZ status:"
-          sudo superdmz-client -status || true
-
-          echo ""
-          echo "=========================================="
-
-      # 9. زنده نگه داشتن Runner
       - name: Keep Server Alive
         run: |
-          echo "SSH server is running."
+          echo "======================================"
+          echo "PUBLIC SSH SERVER"
+          echo "======================================"
 
           while true; do
             echo ""
-            echo "=========================================="
-            echo "[$(date)] Server is alive"
-            echo "=========================================="
+            echo "[$(date)] Server is running..."
 
-            sudo systemctl is-active ssh || true
+            echo "--- SuperDMZ ---"
             sudo superdmz-client -status || true
+
+            echo "--- SSH ---"
+            sudo systemctl is-active ssh || true
 
             sleep 60
           done
