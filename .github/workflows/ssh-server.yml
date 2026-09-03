@@ -1,0 +1,53 @@
+name: Public SSH Server
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ssh-server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+
+    steps:
+
+      - name: Install SSH
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openssh-server
+
+          sudo mkdir -p /run/sshd
+
+          sudo systemctl enable ssh
+          sudo systemctl start ssh
+
+          echo "SSH Server started"
+
+      - name: Create SSH User
+        run: |
+          sudo useradd -m -s /bin/bash yasin || true
+
+          echo 'yasin:ChangeThisPassword123!' | sudo chpasswd
+
+          sudo usermod -aG sudo yasin
+
+      - name: Install SuperDMZ Client
+        run: |
+          curl -fsSL https://superdmz.com/download/LinuxInstaller.sh | sudo sh
+
+      - name: Start SuperDMZ Tunnel
+        env:
+          SUPERDMZ_TOKEN: ${{ secrets.SUPERDMZ_TOKEN }}
+        run: |
+          sudo superdmz-client --token "$SUPERDMZ_TOKEN" --port 22
+
+      - name: Check SSH
+        run: |
+          sudo systemctl status ssh --no-pager || true
+          ss -tlnp | grep ':22' || true
+
+      - name: Keep Server Alive
+        run: |
+          while true; do
+            echo "[$(date)] SSH server is running..."
+            sleep 300
+          done
